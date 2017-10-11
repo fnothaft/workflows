@@ -124,6 +124,7 @@ kwargs = dict(
             'bdg-avocado = bdgenomics.workflows.avocado_pipeline.variant_calling:main',
             'bdg-deca = bdgenomics.workflows.deca_pipeline.call_cnvs:main',
             'bdg-cannoli-bwa = bdgenomics.workflows.cannoli_pipeline.bwa_alignment:main',
+            'bdg-cannoli-bwa-native = bdgenomics.workflows.cannoli_pipeline.native:main',
             'bdg-gatk3-benchmark = bdgenomics.workflows.benchmarking.gatk3_pipeline.preprocessing:main',
             'bdg-mkdups-benchmark = bdgenomics.workflows.benchmarking.single_node.mkdups:main',
             'bdg-sort-benchmark = bdgenomics.workflows.benchmarking.single_node.sort:main',
