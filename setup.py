@@ -121,8 +121,10 @@ kwargs = dict(
     entry_points={
         'console_scripts': [
             'bdg-adam = bdgenomics.workflows.adam_pipeline.preprocessing:main',
+            'bdg-adam-native = bdgenomics.workflows.adam_pipeline.native:main',
             'bdg-avocado = bdgenomics.workflows.avocado_pipeline.variant_calling:main',
             'bdg-deca = bdgenomics.workflows.deca_pipeline.call_cnvs:main',
+            'bdg-deca-native = bdgenomics.workflows.deca_pipeline.native:main',
             'bdg-cannoli-bwa = bdgenomics.workflows.cannoli_pipeline.bwa_alignment:main',
             'bdg-cannoli-bwa-native = bdgenomics.workflows.cannoli_pipeline.native:main',
             'bdg-gatk3-benchmark = bdgenomics.workflows.benchmarking.gatk3_pipeline.preprocessing:main',

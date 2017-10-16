@@ -43,79 +43,105 @@ def _log_runtime(job, start, end, cmd):
                                                                   end))
 
 
-def call_cannoli(job,
-                 cannoli_path,
-                 executor_memory,
-                 driver_memory,
-                 executor_cores,
-                 executors,
-                 sample,
-                 input_path,
-                 output_path,
-                 index_path,
-                 sequence_dictionary,
-                 bwa_path,
-                 spark_home):
-
+def call_adam(job,
+              adam_path,
+              executor_memory,
+              driver_memory,
+              executor_cores,
+              executors,
+              input_path,
+              output_path,
+              spark_home,
+              adam_cmd,
+              args,
+              replication=1,
+              delete_input=False):
+    
     check_call(["hdfs", "dfs",
                 "-rm",
                 "-r", "-f", "-skipTrash",
                 output_path])
-
-    cmd = [cannoli_path,
+    
+    cmd = [adam_path,
            "--master", "yarn",
            "--deploy-mode", "cluster",
-           "--conf", "spark.hadoop.dfs.replication=1",
+           "--conf", "spark.hadoop.dfs.replication=%d" % replication,
            "--packages", "org.apache.parquet:parquet-avro:1.8.2",
            "--num-executors", str(executors),
            "--executor-memory", executor_memory,
            "--executor-cores", str(executor_cores),
            "--driver-memory", driver_memory,
-           "--", "bwa",
+           "--",
+           adam_cmd,
            input_path,
-           output_path,
-           sample,
-           "-index", index_path,
-           "-sequence_dictionary", sequence_dictionary,
-           "-bwa_path", bwa_path]
+           output_path]
+    cmd.extend(args)
 
     start_time = time.time()
 
     check_call(cmd, env={'SPARK_HOME': spark_home})
 
     end_time = time.time()
-    _log_runtime(job, start_time, end_time, sample)
+    _log_runtime(job, start_time, end_time, input_path)
+
+    if delete_input:
+
+        check_call(["hdfs", "dfs",
+                    "-rm",
+                    "-r", "-f", "-skipTrash",
+                    input_path])
+
+
+def adam_realign(job,
+                 adam_path,
+                 executor_memory,
+                 driver_memory,
+                 executor_cores,
+                 executors,
+                 input_path,
+                 spark_home):
+
+    output_path = input_path.replace("alignments",
+                                     "analysis").replace(".adam", ".reads.adam")
+
+    call_adam(job,
+              adam_path,
+              executor_memory,
+              driver_memory,
+              executor_cores,
+              executors,
+              input_path,
+              output_path,
+              spark_home,
+              "transformAlignments",
+              ["-realign_indels",
+               "-aligned_read_predicate",
+               "-limit_projection",
+               "-log_odds_threshold", "0.5"],
+              replication=2)
 
 
 def queue_samples(job,
                   samples,
-                  cannoli_path,
+                  adam_path,
                   executor_memory,
                   driver_memory,
                   executor_cores,
-                  index_path,
-                  sequence_dictionary,
-                  bwa_path,
                   spark_home):
 
     block_size = 128
 
-    for (sample, input_path, output_path, size) in samples:
+    for (input_path, size) in samples:
 
         executors = int(size * (1024 / block_size) / executor_cores) + 1
 
-        job.addChildJobFn(call_cannoli,
-                          cannoli_path,
+        job.addChildJobFn(adam_realign,
+                          adam_path,
                           executor_memory,
                           driver_memory,
                           executor_cores,
                           executors,
-                          sample,
                           input_path,
-                          output_path,
-                          index_path,
-                          sequence_dictionary,
-                          bwa_path,
                           spark_home)
 
 def main():
@@ -123,7 +149,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-m', '--manifest', required=True,
                         help='Manifest file with (sample\tinput path\toutput path) per line')
-    parser.add_argument('-c', '--cannoli-path', required=True,
+    parser.add_argument('-c', '--adam-path', required=True,
                         help='Path to cannoli-submit')
     parser.add_argument('-x', '--executor-memory', default='25g',
                         help='Amount of memory per Spark executor.')
@@ -131,12 +157,6 @@ def main():
                         help='Amount of memory on the Spark driver')
     parser.add_argument('-k', '--executor-cores', default=4,
                         help='Amount of cores per Spark executor.')
-    parser.add_argument('-i', '--index', required=True,
-                        help='Path to BWA indices')
-    parser.add_argument('-s', '--sequence-dictionary', required=True,
-                        help='Path to sequence dictionary')
-    parser.add_argument('-b', '--bwa', required=True,
-                        help='Path to BWA')
     parser.add_argument('-S', '--spark-home', required=True,
                         help='Path to SPARK_HOME')
 
@@ -150,17 +170,14 @@ def main():
         
         line = line.split()
         
-        samples.append((line[0], line[1], line[2], float(line[3])))
+        samples.append((line[0], float(line[1])))
 
     Job.Runner.startToil(Job.wrapJobFn(queue_samples,
                                        samples,
-                                       args.cannoli_path,
+                                       args.adam_path,
                                        args.executor_memory,
                                        args.driver_memory,
                                        args.executor_cores,
-                                       args.index,
-                                       args.sequence_dictionary,
-                                       args.bwa,
                                        args.spark_home), args)
 
 if __name__ == "__main__":
