@@ -123,6 +123,7 @@ kwargs = dict(
             'bdg-adam = bdgenomics.workflows.adam_pipeline.preprocessing:main',
             'bdg-adam-native = bdgenomics.workflows.adam_pipeline.native:main',
             'bdg-avocado = bdgenomics.workflows.avocado_pipeline.variant_calling:main',
+            'bdg-avocado-native = bdgenomics.workflows.avocado_pipeline.native:main',
             'bdg-deca = bdgenomics.workflows.deca_pipeline.call_cnvs:main',
             'bdg-deca-native = bdgenomics.workflows.deca_pipeline.native:main',
             'bdg-cannoli-bwa = bdgenomics.workflows.cannoli_pipeline.bwa_alignment:main',
